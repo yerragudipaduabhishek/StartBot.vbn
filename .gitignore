@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Data / state
+*.db
+*.sqlite3
+data/
+
+# Keep the app source package tracked; only generated data directories are ignored.
+!app/data/
+
+# Node / dashboard
+node_modules/
+.next/
+out/
+npm-debug.log*
+
+# Logs
+*.log
+logs/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Generated research/backup artifacts
+artifacts/
+backups/

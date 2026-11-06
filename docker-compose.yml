@@ -1,0 +1,89 @@
+services:
+  app:
+    build: .
+    command: python -m app
+    environment:
+      # FastAPI binds 0.0.0.0:8000 inside the container; publish to the host
+      # port via BACKEND_PORT (default 8000). Keep these defaults unless the
+      # host already uses port 8000.
+      BACKEND_HOST: 0.0.0.0
+      BACKEND_PORT: "8000"
+      # dev keeps the API bootable without a token; set ENVIRONMENT=paper and a
+      # 24+ character ADMIN_TOKEN for a token-gated deployment.
+      ENVIRONMENT: "${ENVIRONMENT:-dev}"
+      ALLOW_PUBLIC_BIND: "true"
+      ADMIN_TOKEN: "${ADMIN_TOKEN:-}"
+      DATABASE_URL: sqlite:////app/data/trading.db
+      RESEARCH_DATABASE_URL: sqlite:////app/data/research.db
+      CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}"
+      LOG_FILE: /app/logs/app.log
+      # Hard safety: never enable real orders through compose.
+      LIVE_MODE: "false"
+      REAL_ORDER_CONFIRMATION: "false"
+      TESTNET_MODE: "true"
+    ports:
+      # Bind the published port to loopback by default. Put a TLS reverse
+      # proxy in front for remote access; do not expose this API directly.
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+    volumes:
+      # SQLite DB + execution logs persist across container restarts.
+      - ./data:/app/data
+      - ./logs:/app/logs
+      # Optional: load settings from the host .env instead of env block above.
+      # - ./.env:/app/.env:ro
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ./dashboard
+      args:
+        BACKEND_URL: http://app:8000
+    environment:
+      BACKEND_URL: http://app:8000
+    ports:
+      - "127.0.0.1:${DASHBOARD_PORT:-3000}:3000"
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Optional long-running paper soak. Start with:
+  #   docker compose --profile soak up soak
+  soak:
+    profiles: ["soak"]
+    build: .
+    command: python -m app.soak --out /app/data/soak_telemetry.jsonl
+    environment:
+      DATABASE_URL: sqlite:////app/data/trading.db
+      RESEARCH_DATABASE_URL: sqlite:////app/data/research.db
+      LOG_FILE: /app/logs/soak.log
+      LIVE_MODE: "false"
+      REAL_ORDER_CONFIRMATION: "false"
+      TESTNET_MODE: "true"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+  # ---- Optional infra (not required - the app runs on SQLite alone). ----
+  # Start on demand with:  docker compose up --profile infra
+  db:
+    image: postgres:16-alpine
+    profiles: ["infra"]
+    environment:
+      POSTGRES_USER: trading
+      POSTGRES_PASSWORD: trading
+      POSTGRES_DB: trading
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["infra"]
+    ports:
+      - "6379:6379"
+
+volumes:
+  pgdata:

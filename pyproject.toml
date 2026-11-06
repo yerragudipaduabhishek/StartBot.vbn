@@ -1,0 +1,21 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 160
+exclude = [".venv", "dashboard", "data", "logs", "artifacts"]
+
+[tool.ruff.lint]
+select = ["E9", "F"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+follow_imports = "skip"
+check_untyped_defs = true
+warn_unused_ignores = true
+
+[tool.coverage.run]
+source = ["app"]
